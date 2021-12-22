@@ -12,49 +12,57 @@ device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 # hyperparameters
 batch_size = 200
 iterations = 30
-
 gen_lr = 0.001
 discr_lr = 0.001
 lam = 100  # weight for l1 cost term
-
 bottleneck_size = 20
 image_size = (200, 200)
 
 # load dataset
 dataset = face_dset.FaceLabels()
-
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
                                          shuffle=True)
-loss_f = nn.BCELoss()
+
 
 def train():
-    gen = cnn.ConvGenerator(image_size, bottleneck_size)
-    discr = cnn.ConvDiscriminator(image_size)
+    gen = cnn.ConvGenerator(image_size, bottleneck_size).to(device)
+    discr = cnn.ConvDiscriminator(image_size).to(device)
 
     optimizer_G = torch.optim.Adam(gen.parameters(), lr=gen_lr)
     optimizer_D = torch.optim.Adam(discr.parameters(), lr=discr_lr)
     l1 = torch.nn.L1Loss()
+    loss_f = nn.BCELoss()
 
     curr_it = 0
-    res = [0]
+    chosen_lbl = None  # face labels for tracking
+    res = [0, 0]
+
     while curr_it < iterations:
         for i, batch in enumerate(dataloader, 0):
 
-            l = batch["label"]
+            l = batch["label"].to(device)
             f = batch["face"]
-
             batch_size = l.shape[0]
 
-            # generate first half of batch
+            # generate first half of batch and assign faces to labels
             gen_out_old = gen(l[:batch_size//2])
-            test_out = torch.tensor(gen_out_old[:8])
-            res[0] = test_out.permute(0, 2, 3, 1)
             gen_out = torch.cat((gen_out_old, f[:batch_size//2]), dim=1)
+
+            # track progress on generated faces
+            if chosen_lbl is None:
+                chosen_lbl = l[:8].clone().detach()
+                test_out = gen_out_old[:8].clone().detach()
+            else:
+                test_out = gen(chosen_lbl).detach()
+
+            res[0] = test_out.permute(0, 2, 3, 1)
+            res[1] = chosen_lbl
 
             # assign faces to second half of batch
             real_out = l[batch_size//2:]
             real_out = torch.cat((real_out, f[batch_size//2:]), dim=1)
 
+            # forward pass on discriminator
             discr_out_gen = discr(gen_out.detach())
             discr_out_real = discr(real_out)
 
@@ -71,7 +79,7 @@ def train():
             print(float(discr_cost))
             optimizer_D.step()
 
-            # compute generator cross entropy cost + backprop
+            # compute generator cross entropy + backprop
             optimizer_G.zero_grad()
             fake_gen_in = torch.cat((gen_out_old, f[:batch_size//2]), dim=1)
             discr_out_fake_gen = discr(fake_gen_in)
@@ -84,13 +92,14 @@ def train():
             optimizer_G.step()
             print(float(gen_cost))
 
+        show_images(res[0], res[1].permute(0, 2, 3, 1), curr_it)
         print("epoch " + str(curr_it))
         curr_it += 1
-    show_images(res[0])
+
     return gen, discr
 
 
-def show_images(images) -> None:
+def show_images(images, lbl, epoch) -> None:
     n: int = len(images)
     f = plt.figure()
     plt.axis("off")
@@ -99,18 +108,14 @@ def show_images(images) -> None:
         f.add_subplot(1, n, i + 1)
         plt.imshow(images[i])
 
+    for i in range(len(lbl)):
+        f.add_subplot(2, n, i + 1)
+        plt.imshow(lbl[i])
+
     plt.setp(plt.gcf().get_axes(), xticks=[], yticks=[])
-    plt.show(block=True)
+    plt.savefig("epoch_" + str(epoch) + ".png")
 
 
 if __name__ == '__main__':
     train()
-
-    # Plot some training images
-    # real_batch = next(iter(dataloader))
-    # plt.figure(figsize=(8, 8))
-    # plt.axis("off")
-    # plt.title("Training Images")
-    # plt.imshow(np.transpose(vutils.make_grid(real_batch[0].to(device)[:64], padding=2, normalize=True).cpu(),(1,2,0)))
-    # plt.show()
 
