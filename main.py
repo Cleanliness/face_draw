@@ -11,7 +11,7 @@ device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 
 # hyperparameters
 batch_size = 200
-iterations = 10
+iterations = 30
 
 gen_lr = 0.001
 discr_lr = 0.001
@@ -36,6 +36,7 @@ def train():
     l1 = torch.nn.L1Loss()
 
     curr_it = 0
+    res = [0]
     while curr_it < iterations:
         for i, batch in enumerate(dataloader, 0):
 
@@ -47,32 +48,22 @@ def train():
             # generate first half of batch
             gen_out_old = gen(l[:batch_size//2])
             test_out = torch.tensor(gen_out_old[:8])
-            show_images(test_out.permute(0, 2, 3, 1))
+            res[0] = test_out.permute(0, 2, 3, 1)
             gen_out = torch.cat((gen_out_old, f[:batch_size//2]), dim=1)
 
             # assign faces to second half of batch
             real_out = l[batch_size//2:]
             real_out = torch.cat((real_out, f[batch_size//2:]), dim=1)
 
-            discr_out_gen = discr(gen_out)
+            discr_out_gen = discr(gen_out.detach())
             discr_out_real = discr(real_out)
-
-            # compute generator cross entropy cost + backprop
-            optimizer_G.zero_grad()
-            fake_lbl = torch.ones(batch_size//2)
-            gen_cost = loss_f(discr_out_gen, torch.unsqueeze(fake_lbl, -1))
-            gen_cost += lam*l1(gen_out_old, f[:batch_size//2])
-
-            gen_cost.backward()
-            optimizer_G.step()
-            print(float(gen_cost))
 
             # compute discriminator CE, backprop
             optimizer_D.zero_grad()
             lbl_left = torch.zeros(batch_size//2)
             lbl_right = torch.ones(math.ceil(batch_size/2))
             lbl_discr = torch.cat((lbl_left, lbl_right))
-            all_out = torch.cat((discr_out_gen.clone().detach(), discr_out_real))
+            all_out = torch.cat((discr_out_gen, discr_out_real))
 
             lbl_discr = torch.unsqueeze(lbl_discr, -1)
             discr_cost = loss_f(all_out, lbl_discr)
@@ -80,8 +71,22 @@ def train():
             print(float(discr_cost))
             optimizer_D.step()
 
+            # compute generator cross entropy cost + backprop
+            optimizer_G.zero_grad()
+            fake_gen_in = torch.cat((gen_out_old, f[:batch_size//2]), dim=1)
+            discr_out_fake_gen = discr(fake_gen_in)
+
+            fake_lbl = torch.ones(batch_size//2)
+            gen_cost = loss_f(discr_out_fake_gen, torch.unsqueeze(fake_lbl, -1))
+            gen_cost += lam*l1(gen_out_old, f[:batch_size//2])
+
+            gen_cost.backward()
+            optimizer_G.step()
+            print(float(gen_cost))
+
         print("epoch " + str(curr_it))
         curr_it += 1
+    show_images(res[0])
     return gen, discr
 
 
