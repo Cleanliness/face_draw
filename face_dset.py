@@ -2,7 +2,6 @@ from torch.utils.data import Dataset
 from torchvision import *
 import torchvision.datasets as ds
 
-
 class FaceLabels(Dataset):
     def __init__(self):
         # load dataset
