@@ -44,11 +44,11 @@ class UnetGenerator(nn.Module):
         d2 = self.down2(d1)
         d3 = self.down3(d2)
 
-        u1 = self.up1(d3, d2)
-        u2 = self.up2(u1, d1)
-        u3 = self.up3(u2, stack_out)
+        x = self.up1(d3, d2)
+        x = self.up2(x, d1)
+        x = self.up3(x, stack_out)
 
-        return self.out_stack(u3)
+        return self.out_stack(x)
 
 
 class UnetUp(nn.Module):
@@ -87,10 +87,10 @@ class UnetUp(nn.Module):
 
         padding = (dy // 2, math.ceil(dy / 2), dx // 2, math.ceil(dx / 2))
 
-        padded_in = torch.nn.functional.pad(nn_input, padding)
+        nn_input = torch.nn.functional.pad(nn_input, padding)
 
-        x = torch.cat((padded_in, skip_in), dim=1)
-        return self.conv_stack(x)
+        nn_input = torch.cat((nn_input, skip_in), dim=1)
+        return self.conv_stack(nn_input)
 
 
 class UnetDown(nn.Module):
