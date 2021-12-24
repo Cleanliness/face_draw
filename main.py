@@ -46,7 +46,7 @@ def train():
 
             # generate first half of batch and assign faces to labels
             gen_out_old = gen(l[:batch_size//2])
-            gen_out = torch.cat((gen_out_old, f[:batch_size//2]), dim=1)
+            gen_out = torch.cat((l[:batch_size//2], gen_out_old), dim=1)
 
             # track progress on generated faces
             if chosen_lbl is None:
@@ -59,8 +59,7 @@ def train():
             res[1] = chosen_lbl
 
             # assign faces to second half of batch
-            real_out = l[batch_size//2:]
-            real_out = torch.cat((real_out, f[batch_size//2:]), dim=1)
+            real_out = torch.cat((l[batch_size//2:], f[batch_size//2:]), dim=1)
 
             # forward pass on discriminator
             discr_out_gen = discr(gen_out.detach())
@@ -74,7 +73,7 @@ def train():
             all_out = torch.cat((discr_out_gen, discr_out_real))
 
             lbl_discr = torch.unsqueeze(lbl_discr, -1)
-            discr_cost = loss_f(all_out, lbl_discr)
+            discr_cost = loss_f(all_out, lbl_discr) / 2
             discr_cost.backward()
             print(float(discr_cost))
             optimizer_D.step()

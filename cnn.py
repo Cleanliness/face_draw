@@ -58,12 +58,15 @@ class ConvDiscriminator(nn.Module):
         width = 9680
         self.stack = nn.Sequential(
             nn.Conv2d(6, 5, (5, 5), stride=2),
+            nn.BatchNorm2d(5),
             nn.LeakyReLU(),
             nn.Conv2d(5, 10, (5, 5), stride=2),
+            nn.BatchNorm2d(10),
             nn.LeakyReLU(),
             nn.Conv2d(10, 20, (5, 5), stride=2),
-            nn.Flatten(),
+            nn.BatchNorm2d(20),
             nn.LeakyReLU(),
+            nn.Flatten(),
             nn.Linear(width, 1),
             nn.Sigmoid()
         )
