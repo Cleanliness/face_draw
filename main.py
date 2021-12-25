@@ -6,12 +6,13 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 from torchvision import *
 import cnn
+import u_net
 
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 
 # hyperparameters
-batch_size = 200
-iterations = 30
+batch_size = 25
+iterations = 100
 gen_lr = 0.001
 discr_lr = 0.001
 lam = 100  # weight for l1 cost term
@@ -25,7 +26,7 @@ dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
 
 
 def train():
-    gen = cnn.ConvGenerator(image_size, bottleneck_size).to(device)
+    gen = u_net.UnetGenerator(image_size).to(device)
     discr = cnn.ConvDiscriminator(image_size).to(device)
 
     optimizer_G = torch.optim.Adam(gen.parameters(), lr=gen_lr)
@@ -41,12 +42,12 @@ def train():
         for i, batch in enumerate(dataloader, 0):
 
             l = batch["label"].to(device)
-            f = batch["face"]
+            f = batch["face"].to(device)
             batch_size = l.shape[0]
 
             # generate first half of batch and assign faces to labels
-            gen_out_old = gen(l[:batch_size//2])
-            gen_out = torch.cat((l[:batch_size//2], gen_out_old), dim=1)
+            gen_out_old = gen(l[:batch_size//2].to(device))
+            gen_out = torch.cat((l[:batch_size//2].to(device), gen_out_old), dim=1)
 
             # track progress on generated faces
             if chosen_lbl is None:
@@ -55,11 +56,11 @@ def train():
             else:
                 test_out = gen(chosen_lbl).detach()
 
-            res[0] = test_out.permute(0, 2, 3, 1)
-            res[1] = chosen_lbl
+            res[0] = test_out.permute(0, 2, 3, 1).cpu()
+            res[1] = chosen_lbl.clone().detach().cpu()
 
             # assign faces to second half of batch
-            real_out = torch.cat((l[batch_size//2:], f[batch_size//2:]), dim=1)
+            real_out = torch.cat((l[batch_size//2:].to(device), f[batch_size//2:].to(device)), dim=1)
 
             # forward pass on discriminator
             discr_out_gen = discr(gen_out.detach())
@@ -67,8 +68,8 @@ def train():
 
             # compute discriminator CE, backprop
             optimizer_D.zero_grad()
-            lbl_left = torch.zeros(batch_size//2)
-            lbl_right = torch.ones(math.ceil(batch_size/2))
+            lbl_left = torch.zeros(batch_size//2).to(device)
+            lbl_right = torch.ones(math.ceil(batch_size/2)).to(device)
             lbl_discr = torch.cat((lbl_left, lbl_right))
             all_out = torch.cat((discr_out_gen, discr_out_real))
 
@@ -83,7 +84,7 @@ def train():
             fake_gen_in = torch.cat((gen_out_old, f[:batch_size//2]), dim=1)
             discr_out_fake_gen = discr(fake_gen_in)
 
-            fake_lbl = torch.ones(batch_size//2)
+            fake_lbl = torch.ones(batch_size//2).to(device)
             gen_cost = loss_f(discr_out_fake_gen, torch.unsqueeze(fake_lbl, -1))
             gen_cost += lam*l1(gen_out_old, f[:batch_size//2])
 

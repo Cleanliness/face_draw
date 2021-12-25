@@ -76,5 +76,5 @@ class ConvDiscriminator(nn.Module):
 
 
 # get summary of dimensions
-net = ConvDiscriminator((200, 200))
-torchsummary.summary(net, (6, 200, 200), 64)
+# net = ConvDiscriminator((200, 200))
+# torchsummary.summary(net, (6, 200, 200), 64)

@@ -113,5 +113,5 @@ class UnetDown(nn.Module):
         return self.stack(nn_input)
 
 
-net = UnetGenerator((200, 200))
-torchsummary.summary(net, (3, 200, 200), 200)
+# net = UnetGenerator((200, 200))
+# torchsummary.summary(net, (3, 200, 200), 200)
