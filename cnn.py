@@ -3,9 +3,12 @@ import torch.nn as nn
 import torchsummary
 
 
+# ===============================================================
+# Contains baseline models for comparison with U-net and patchGAN
+# ===============================================================
 class ConvGenerator(nn.Module):
     """
-    Generator NN in GAN architecture.
+    CNN autoencoder based generator in GAN architecture.
     """
     def __init__(self, imgsize, bottleneck_size):
         """
@@ -50,7 +53,7 @@ class ConvGenerator(nn.Module):
 
 class ConvDiscriminator(nn.Module):
     """
-    Discriminator network
+    Convolutional discriminator network
     """
 
     def __init__(self, img_size):

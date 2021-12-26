@@ -95,7 +95,7 @@ class UnetUp(nn.Module):
 
 class UnetDown(nn.Module):
     """
-    Down-sampling layer in u-net
+    Downsampling layer in u-net
     """
 
     def __init__(self, in_ch, out_ch):
@@ -108,7 +108,7 @@ class UnetDown(nn.Module):
 
     def forward(self, nn_input):
         """
-        Forward pass on NN
+        Forward pass on downsampling layer
         """
         return self.stack(nn_input)
 
